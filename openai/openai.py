@@ -48,12 +48,14 @@ def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_de
         openai_learner.agent.stopEpisode()
         openai_learner.updateParameters()
         if i_episode % (openai_learner.numTraining/10.) > (i_episode+1) % (openai_learner.numTraining/10.):
-            print 'episode:', i_episode, '# of observed states', len(openai_learner.agent.qVals)
-            print 'weights:', openai_learner.agent.weights
+            pass
+            #print('episode:', i_episode, '# of observed states', len(openai_learner.agent.qVals) )
+            #print 'weights:', openai_learner.agent.weights
             #print 'epsilon:', openai_learner.epsilon
             #print 'alpha:', openai_learner.alpha
     
     env.close()
+    gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
     gym.upload(recording_str)
  
 class OpenAiLearner:
@@ -101,12 +103,12 @@ class OpenAiLearner:
     def updateParameters(self):
         self.epsilon *= self.epsilon_decay
         self.alpha *= self.alpha_decay
-        self.agent.setEpsilon(self.epsilon)
+        #self.agent.setEpsilon(self.epsilon)
 
     def prepareState(self, observation):
         
         if isinstance(self.env.observation_space, gym.spaces.discrete.Discrete):
-            pass;
+            pass
         
         elif isinstance(self.env.observation_space, gym.spaces.box.Box):
             if self.discretize:
@@ -127,7 +129,7 @@ class OpenAiLearner:
             if self.env_name in BIN_RANGES:
                 bin_ranges = BIN_RANGES[self.env_name]
             if len(bin_ranges) != len(num_bins):
-                print 'Incorrect number of bins specified:', len(num_bins), 'Should be:', len(bin_ranges), '\nFalling back to default'
+                print('Incorrect number of bins specified:', len(num_bins), 'Should be:', len(bin_ranges), '\nFalling back to default')
                 num_bins = BIN_SIZES[self.env_name]
             i=0
             for low, high in bin_ranges:
@@ -155,6 +157,8 @@ def read_command(argv):
                     - starts training on mountain car environment with bucket sizes for each of the (2) state space dimensions as 30
                 (3) python openai.py --no-graphics
                     - starts training without graphics.
+                (4) sudo xvfb-run -s "-screen 0 1400x900x24" python openai.py -x 50 -f deepLearningAgent.DeepLearningAgent -v FlappyBird-v0
+                    - starts training a deep learning agent running off a server
     """
     parser = OptionParser(usageStr)
     

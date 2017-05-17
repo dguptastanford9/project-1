@@ -1,5 +1,6 @@
 import numpy as np
 import random
+ 
 
 class DeepLearningAgent(object):
 
@@ -11,22 +12,25 @@ class DeepLearningAgent(object):
         called by environment for every observation
         """
         actions = self.getLegalActions(observation)
+        print('actions',actions)
         pixels = np.array(observation) # numpy array of current image, W x H x 3 (r,g,b)
-        #print(pixels.shape)
-
+        print('random.choice(actions)',random.choice(actions))
         return random.choice(actions)
-          
+    
+    
+        
     
     def observeTransition(self, old_obs, action, observation, reward):
         """
         called by environment between two observations
-        """    
+        """
         pass
 
     def startEpisode(self):
         """
         Called by environment when new episode is starting
         """
+
         pass
 
     def stopEpisode(self):

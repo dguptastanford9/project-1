@@ -35,7 +35,6 @@ def runNeuralSolver(env_name,
                     agent_class,
                     discretize,
                     sim_env,
-                    learning_rate,
                     num_actions,
                     num_steps_save,
                     num_episodes_run
@@ -50,7 +49,8 @@ def runNeuralSolver(env_name,
                                 epsilonDecay=epsilon_decay,
                                 gamma=gamma,
                                 numTraining=numTraining,
-                                learningRate=learning_rate,
+                                learningRate=alpha,
+                                learningDecay=alpha_decay,
                                 numActions=num_actions,
                                 numStepsBeforeSaveModel=num_steps_save,
                                 numEpisodesRun=num_episodes_run
@@ -58,6 +58,8 @@ def runNeuralSolver(env_name,
     
     neuralSolver.playGame()  # add boolean flag for train or test
     
+    gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
+    gym.upload(recording_str)
 
 def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run):
     env = gym.make(env_name)
@@ -241,9 +243,6 @@ def read_command(argv):
     parser.add_option('-f', '--agent', type='string', dest='agent_class', help=default('Agent class name'),
                         default='qlearningAgents.QLearningAgent')
     
-    parser.add_option('--learningRate', type='float', dest='learning_rate', help=default('Learning rate'),
-                        default='1e-6')
-    
     parser.add_option('--numActions', type='int', dest='num_actions', help=default('Number of valid actions'),
                         default='2')
     
@@ -251,7 +250,7 @@ def read_command(argv):
                         default='10000')
     
     parser.add_option('--numEpisodesRun', type='int', dest='num_episodes_run', help=default('Number of episodes before we terminate'),
-                        default='1500')
+                        default='15')
     
     options, otherjunk = parser.parse_args(argv)
     assert len(otherjunk) == 0, "Unrecognized options: " + str(otherjunk)

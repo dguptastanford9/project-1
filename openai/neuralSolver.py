@@ -26,7 +26,7 @@ class NeuralSolver():
                  gameEnv=None,
                  agentClass=None,
                  epsilon=1,
-                 epsilonDecay=.05,
+                 epsilonDecay=.99,
                  gamma=.99,
                  numTraining=1000,
                  batchSize=32,
@@ -34,9 +34,10 @@ class NeuralSolver():
                  numActions=2,
                  replayMemory=50000,
                  game='flappyBird',
-                 learningRate=1e-6,
+                 learningRate=1e-3,
+                 learningDecay=1.0,
                  numStepsBeforeSaveModel=10000,
-                 numEpisodesRun=1500
+                 numEpisodesRun=10
                  ):
         
         self.gameEnv = gameEnv
@@ -52,6 +53,7 @@ class NeuralSolver():
         self.explore = self.numTraining  # frames over which to anneal epsilon
         self.replayMemory = replayMemory  # number of previous steps to store
         self.learningRate = learningRate  # learning rate optimization algorithm(RMS/ADAM etc)
+        self.learningDecay = learningDecay
         self.numStepsBeforeSaveModel = numStepsBeforeSaveModel  # save model after these number of steps
         self.numEpisodesRun = numEpisodesRun  # total number of episodes we want to execute
         
@@ -199,10 +201,9 @@ class NeuralSolver():
             print("Could not find old network weights")
 
         # -----start training ---------
-        epsilon = self.epsilon
         t = 0  # number of transitions 
         
-        for _ in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
+        for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
             
             # ---- open ai game emulator integration  with initial bootstrapping------
           
@@ -229,16 +230,13 @@ class NeuralSolver():
                 
                 # epsilon value will be initialized with a higher value when we have a decent enough model to train
                  
-                if random.random() <= epsilon:
+                if random.random() <= self.epsilon:
                     action_index = random.randrange(self.numActions)
                     actionVector[random.randrange(self.numActions)] = 1
                 else:
                     action_index = np.argmax(yout_t)
                     actionVector[action_index] = 1
                 
-                # scale down epsilon as we have crossed the training threshold
-                if epsilon > self.epsilonDecay and t > self.numTraining:
-                    epsilon -= (self.epsilon - self.epsilonDecay) / self.explore
                     
                 # run the selected action and observe next state and reward
                 
@@ -314,11 +312,19 @@ class NeuralSolver():
                 else:
                     state = "train"
     
-                print("TIMESTEP", t, "/ STATE", state, \
-                      "/ EPSILON", epsilon, "/ ACTION", action_index, "/ REWARD", reward, \
+                print("TIMESTEP", t, "/ EPISODE", episodeNum, "/ STATE", state, \
+                      "/ EPSILON", self.epsilon, "/ ACTION", action_index, "/ REWARD", reward, \
                       "/ Q_MAX %e" % np.max(yout_t))
 
-   
+                if reward > 0:
+                    print("GREAT SUCCESS! reward = ", reward) 
+
+            # scale down epsilon as we train
+            #this is a linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
+            self.epsilon *= self.epsilonDecay
+            if episodeNum > self.numEpisodesRun:
+                self.epsilon = 0
+        self.gameEnv.close()
   
     
     def playGame(self):

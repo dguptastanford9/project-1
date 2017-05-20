@@ -37,7 +37,8 @@ class NeuralSolver():
                  learningRate=1e-3,
                  learningDecay=1.0,
                  numStepsBeforeSaveModel=10000,
-                 numEpisodesRun=10
+                 numEpisodesRun=10,
+                 mode='cpu'
                  ):
         
         self.gameEnv = gameEnv
@@ -45,7 +46,7 @@ class NeuralSolver():
         self.epsilon = epsilon  # uses random action or predicted action based on epsilon value
         self.epsilonDecay = epsilonDecay  # decay rate for epsilon
         self.gamma = gamma  # reward factor
-        self.numTraining = numTraining  # number of examples for training
+        self.numTraining = numTraining  #  number of examples for training
         self.batchSize = batchSize  # number of data points descent
         self.framePerAction = framePerAction
         self.numActions = numActions
@@ -56,7 +57,7 @@ class NeuralSolver():
         self.learningDecay = learningDecay
         self.numStepsBeforeSaveModel = numStepsBeforeSaveModel  # save model after these number of steps
         self.numEpisodesRun = numEpisodesRun  # total number of episodes we want to execute
-        
+        self.mode=mode
         self.agent = util.lookup(agentClass, globals())(actionFn=self.getLegalActions)
         
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
@@ -93,15 +94,11 @@ class NeuralSolver():
             pass
         
         elif isinstance(self.gameEnv.observation_space, spaces.box.Box):
-#             if self.discretize:
-#                 observation = self.toBins(observation)
             observation = tuple(observation)
         
         else:
             raise Exception, 'Observation type not supported: %s' % type(self.gameEnv.observation_space)
     
-#         if self.sim_env:
-#             observation = (copy(self.gameEnv), observation)
         return observation
     
     # ------------- END OF OPEN AI RELATED METHODS-------------------------------
@@ -128,191 +125,187 @@ class NeuralSolver():
     ## ----------------Create Model ------------------------------
     
     def createNetwork(self):
+
+        inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op = [None] * 7
         
-        W_conv1 = self.weight_variable([8, 8, 4, 32])
-        b_conv1 = self.bias_variable([32])
-
-        W_conv2 = self.weight_variable([4, 4, 32, 64])
-        b_conv2 = self.bias_variable([64])
-
-        W_conv3 = self.weight_variable([3, 3, 64, 64])
-        b_conv3 = self.bias_variable([64])
-
-        W_fc1 = self.weight_variable([1600, 512])
-        b_fc1 = self.bias_variable([512])
-
-        W_fc2 = self.weight_variable([512, self.numActions])
-        b_fc2 = self.bias_variable([self.numActions])
-
-        # input layer
-        s = tf.placeholder("float", [None, 80, 80, 4])
-
-        # hidden layers
-        h_conv1 = tf.nn.relu(self.conv2d(s, W_conv1, 4) + b_conv1)
-        h_pool1 = self.max_pool_2x2(h_conv1)
-
-        h_conv2 = tf.nn.relu(self.conv2d(h_pool1, W_conv2, 2) + b_conv2)
-        # h_pool2 = max_pool_2x2(h_conv2)
-
-        h_conv3 = tf.nn.relu(self.conv2d(h_conv2, W_conv3, 1) + b_conv3)
-        # h_pool3 = max_pool_2x2(h_conv3)
-
-        # h_pool3_flat = tf.reshape(h_pool3, [-1, 256])
-        h_conv3_flat = tf.reshape(h_conv3, [-1, 1600])
-
-        h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
-
-        # y_out layer
-        y_out = tf.matmul(h_fc1, W_fc2) + b_fc2
-
-        return s, y_out, h_fc1
+        with tf.device('/cpu:0' if self.mode == 'cpu' else '/gpu:0'):
+            
+            W_conv1 = self.weight_variable([8, 8, 4, 32])
+            b_conv1 = self.bias_variable([32])
+    
+            W_conv2 = self.weight_variable([4, 4, 32, 64])
+            b_conv2 = self.bias_variable([64])
+    
+            W_conv3 = self.weight_variable([3, 3, 64, 64])
+            b_conv3 = self.bias_variable([64])
+    
+            W_fc1 = self.weight_variable([1600, 512])
+            b_fc1 = self.bias_variable([512])
+    
+            W_fc2 = self.weight_variable([512, self.numActions])
+            b_fc2 = self.bias_variable([self.numActions])
+    
+            # input layer
+            inputImageVector = tf.placeholder("float", [None, 80, 80, 4])
+    
+            # hidden layers
+            h_conv1 = tf.nn.relu(self.conv2d(inputImageVector, W_conv1, 4) + b_conv1)
+            
+            h_pool1 = self.max_pool_2x2(h_conv1)
+            
+            h_conv2 = tf.nn.relu(self.conv2d(h_pool1, W_conv2, 2) + b_conv2)
+            
+            h_conv3 = tf.nn.relu(self.conv2d(h_conv2, W_conv3, 1) + b_conv3)
+            
+            h_conv3_flat = tf.reshape(h_conv3, [-1, 1600])
+    
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
+    
+            # fc_out layer
+            fc_out = tf.matmul(h_fc1, W_fc2) + b_fc2
+            
+            predictedActionScoreVector = tf.placeholder("float", [None, self.numActions])
+        
+            actualScore = tf.placeholder("float", [None])  # scalar value
+            
+            predictedScore = tf.reduce_sum(tf.multiply(fc_out, predictedActionScoreVector), axis=1)  # scalar
+            
+            cost = tf.reduce_mean(tf.square(actualScore - predictedScore))  # this is more of regression kind of cost function 
+            
+            tf.summary.scalar("loss", cost)  # Create predictedActionScoreVector summary to monitor cost tensor
+            
+            merged_summary_op = tf.summary.merge_all()  # Merge all summaries into predictedActionScoreVector single operation
+            
+            optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)  # TODO make this configurable
+            
+        return inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op   
     
     ## --- Finished creating model ----------------------------------
 
-    def trainNetwork(self, s, model_yout, h_fc1, sess, displayGraphics=True):
+    def trainNetwork(self,
+                    sess,
+                    inputImageVector,
+                    fc_out,
+                    predictedActionScoreVector,
+                    actualScore,
+                    cost,
+                    optimizer,
+                    merged_summary_op,
+                    displayGraphics=True):
         
-        # # ----- Basic tensor flow set up -------------------------## 
+        # ----------------- tensor flow related setup -------------------
         
-        a = tf.placeholder("float", [None, self.numActions])
-        y = tf.placeholder("float", [None])
-        predictedCost = tf.reduce_sum(tf.multiply(model_yout, a), axis=1)
-        cost = tf.reduce_mean(tf.square(y - predictedCost))  # this is more of regression kind of cost function 
-        tf.summary.scalar("loss", cost)  # Create a summary to monitor cost tensor
-        merged_summary_op = tf.summary.merge_all()  # Merge all summaries into a single op
-        optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)  # TODO make this configurable
+        saver = tf.train.Saver()  # saving and loading networks .. this will by default save all tensor flow Variables (placeholders)
+        sess.run(tf.global_variables_initializer())  # initialize session for  tensor flow
+        summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())  # op to write logs to Tensor board
         
-        # # --------- End of Basic Tensor flow set up ----------------------- ##
-        
-        # this will store all the event for replay memory
-        D = deque()
-        
-        # saving and loading networks .. this will by default save all tensor flow Variables (placehoders)
-        saver = tf.train.Saver()
-        # initialize session for  tensor flow
-        sess.run(tf.global_variables_initializer())
-        # op to write logs to Tensor board
-        summary_writer = tf.summary.FileWriter(logs_path, graph=tf.get_default_graph())
-        #---- set up to save and load  networks
-        checkpoint = tf.train.get_checkpoint_state(saved_networks_path)
+        checkpoint = tf.train.get_checkpoint_state(saved_networks_path)  # set up to save and load  networks
         if checkpoint and checkpoint.model_checkpoint_path:
             saver.restore(sess, checkpoint.model_checkpoint_path)
             print("Successfully loaded:", checkpoint.model_checkpoint_path)
         else:
             print("Could not find old network weights")
-
-        # -----start training ---------
-        t = 0  # number of transitions 
+            
+        # --------------------------------start training ----------------
+        
+        replayMemoryQueue = deque()  # this will store all the event for replay memory
+        numIterations = 0  # number of iterations 
         
         for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
             
-            # ---- open ai game emulator integration  with initial bootstrapping------
-          
+            # ---- open-ai game emulator integration  with initial bootstrapping------
+            
             initialColoredObservation = self.gameEnv.reset()
-            # initialColoredObservation = self.prepareState(initialColoredObservation)
-        
             self.agent.startEpisode() 
             self.gameEnv.render(close=not displayGraphics)
-            gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose a scalar randomly from a set of legal actions
-            initialColoredObservation, _, _, _ = self.gameEnv.step(gameAction)  # pass in scalar action to get output
+            gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose predictedActionScoreVector scalar randomly from predictedActionScoreVector set of legal actions
             
-            # do some pre-processing on  image
-            imageBackgroundGray = self.convertImageBackgroubtToGray(initialColoredObservation)
+            initialColoredObservation, _, _, _ = self.gameEnv.step(gameAction)  # pass in scalar action to get output
+            imageBackgroundGray = self.convertImageBackgroubtToGray(initialColoredObservation)  # do pre-processing on image
             currentLastFourImageFrames = np.stack((imageBackgroundGray, imageBackgroundGray, imageBackgroundGray, imageBackgroundGray), axis=2)
+            
             done = False
             
             while not done :
-                
-                # this will evaluate tensor flow model for this current state !!
-                # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
-                yout_t = model_yout.eval(feed_dict={s: [currentLastFourImageFrames]})[0]
+                            
+                yout_t = fc_out.eval(feed_dict={inputImageVector: [currentLastFourImageFrames]})[0]  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
                 actionVector = np.zeros([self.numActions])
                 action_index = 0
-                
-                # epsilon value will be initialized with a higher value when we have a decent enough model to train
                  
-                if random.random() <= self.epsilon:
+                if random.random() <= self.epsilon:  # we will gradually decrease epsilon as we explore 
                     action_index = random.randrange(self.numActions)
                     actionVector[random.randrange(self.numActions)] = 1
                 else:
                     action_index = np.argmax(yout_t)
                     actionVector[action_index] = 1
                 
-                    
-                # run the selected action and observe next state and reward
+                nextColoredImageObservation, reward, isEpisodeDone, _ = self.gameEnv.step(action_index)  # run the selected action and observe next state and reward
                 
-                # currentColoredImageObservation = self.prepareState(currentColoredImageObservation)
-                nextColoredImageObservation, reward, isEpisodeDone, _ = self.gameEnv.step(action_index)  # Fix this with open ai
-                nextImageBackgroundGray = cv2.cvtColor(cv2.resize(nextColoredImageObservation, (80, 80)), cv2.COLOR_BGR2GRAY)
+                nextImageBackgroundGray = cv2.cvtColor(cv2.resize(nextColoredImageObservation, (80, 80)), cv2.COLOR_BGR2GRAY)  # pre processing 
                 _, nextImageBackgroundGray = cv2.threshold(nextImageBackgroundGray, 1, 255, cv2.THRESH_BINARY)
                 nextImageBackgroundGray = np.reshape(nextImageBackgroundGray, (80, 80, 1))
-    
-                nextLastFourImageFrames = np.append(nextImageBackgroundGray, currentLastFourImageFrames[:, :, 0:3], axis=2)
-    
-                # store the transition in D
+                nextLastFourImageFrames = np.append(nextImageBackgroundGray, currentLastFourImageFrames[:, :, 0:3], axis=2)  # stack last 4 image frames 
                 
-                D.append((currentLastFourImageFrames, actionVector, reward, nextLastFourImageFrames, isEpisodeDone))
-                if len(D) > self.replayMemory:
-                    D.popleft()
+                replayMemoryQueue.append((currentLastFourImageFrames, actionVector, reward, nextLastFourImageFrames, isEpisodeDone))  # store the transition in replayMemoryQueue
+                if len(replayMemoryQueue) > self.replayMemory:
+                    replayMemoryQueue.popleft()
                 
                 if isEpisodeDone:
                     done = True
                         
-                # only train if done observing
-                if t > self.numTraining:
-                    if (t == self.numTraining + 1) :
+                if numIterations > self.numTraining:  # only train if done observing
+                    
+                    if (numIterations == self.numTraining + 1) :
                         print("****** Beginning training the model as we have reached the threshold for explore *******")
                         
-                    # sample a batch to train on
-                    minibatch = random.sample(D, self.batchSize)
-                    # get the batch variables
-                    current_state_image_minibatch = [d[0] for d in minibatch]
-                    current_action_minibatch = [d[1] for d in minibatch]
-                    current_rewards_minibatch = [d[2] for d in minibatch]
-                    next_state_image_minibatch = [d[3] for d in minibatch]
+                    minibatch = random.sample(replayMemoryQueue, self.batchSize)  # min-batch to perform optimization
+                    current_state_image_minibatch = [d[0] for d in minibatch]  # get batch of stacked image frames 
+                    current_action_minibatch = [d[1] for d in minibatch]  # min batch for actions performed on each stacked image frame 
+                    current_rewards_minibatch = [d[2] for d in minibatch]  # min batch for rewards 
+                    next_state_image_minibatch = [d[3] for d in minibatch]  # get next batch of stacked image frames 
                     
+                    qfunction = []
+                    next_state_reward_eval = fc_out.eval(feed_dict={inputImageVector: next_state_image_minibatch})
                     
-                    y_batch = []
-                    readout_j1_batch = model_yout.eval(feed_dict={s: next_state_image_minibatch})
                     for i in range(0, len(minibatch)):
                         isEpisodeDone = minibatch[i][4]
                         # if isEpisodeDone, only equals reward , because thats the max we can achieve anyways now  
                         if isEpisodeDone:
-                            y_batch.append(current_rewards_minibatch[i])
+                            qfunction.append(current_rewards_minibatch[i])
                         else:
-                            y_batch.append(current_rewards_minibatch[i] + self.gamma * np.max(readout_j1_batch[i]))
+                            qfunction.append(current_rewards_minibatch[i] + self.gamma * np.max(next_state_reward_eval[i]))
     
                     # perform gradient step .. tensorflow magic !!
-                    
                     # Run optimization op (backprop), cost op (to get loss value)
                     # and summary nodes
                     _, c, summary = sess.run([optimizer, cost, merged_summary_op], feed_dict={
-                        y: y_batch,
-                        a: current_action_minibatch,
-                        s: current_state_image_minibatch})
-                    summary_writer.add_summary(summary, t - self.numTraining + 1)
+                        actualScore: qfunction,
+                        predictedActionScoreVector: current_action_minibatch,
+                        inputImageVector: current_state_image_minibatch})
+                    summary_writer.add_summary(summary, numIterations - self.numTraining + 1)
                     
 
                 # update the old values
                 currentLastFourImageFrames = nextLastFourImageFrames
                 # currentColoredImageObservation = nextColoredImageObservation
                 
-                # update t to track how many training or observations sampled
-                t += 1
+                # update numIterations to track how many training or observations sampled
+                numIterations += 1
                 
                 # save progress every 10000 iterations
-                if t % self.numStepsBeforeSaveModel == 0:
-                    saver.save(sess, saved_networks_path + self.game + '-dqn', global_step=t)
+                if numIterations % self.numStepsBeforeSaveModel == 0:
+                    saver.save(sess, saved_networks_path + self.game + '-dqn', global_step=numIterations)
     
                 # print info
                 state = ""
-                if t <= self.numTraining:
+                if numIterations <= self.numTraining:
                     state = "observe"
-                elif t > self.numTraining and t <= self.numTraining + self.explore:
+                elif numIterations > self.numTraining and numIterations <= self.numTraining + self.explore:
                     state = "explore"
                 else:
                     state = "train"
     
-                print("TIMESTEP", t, "/ EPISODE", episodeNum, "/ STATE", state, \
+                print("TIMESTEP", numIterations, "/ EPISODE", episodeNum, "/ STATE", state, \
                       "/ EPSILON", self.epsilon, "/ ACTION", action_index, "/ REWARD", reward, \
                       "/ Q_MAX %e" % np.max(yout_t))
 
@@ -320,7 +313,7 @@ class NeuralSolver():
                     print("GREAT SUCCESS! reward = ", reward) 
 
             # scale down epsilon as we train
-            #this is a linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
+            # this is predictedActionScoreVector linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
             self.epsilon *= self.epsilonDecay
             if episodeNum > self.numEpisodesRun:
                 self.epsilon = 0
@@ -329,8 +322,8 @@ class NeuralSolver():
     
     def playGame(self):
         sess = tf.InteractiveSession()
-        s, y_out, h_fc1 = self.createNetwork()
-        self.trainNetwork(s, y_out, h_fc1, sess)
+        inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op = self.createNetwork()
+        self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op)
         
     
     def convertImageBackgroubtToGray(self, currentImageOutputColored):

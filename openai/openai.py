@@ -37,7 +37,8 @@ def runNeuralSolver(env_name,
                     sim_env,
                     num_actions,
                     num_steps_save,
-                    num_episodes_run
+                    num_episodes_run,
+                    mode
                     ):
     
     env = gym.make(env_name)
@@ -53,7 +54,8 @@ def runNeuralSolver(env_name,
                                 learningDecay=alpha_decay,
                                 numActions=num_actions,
                                 numStepsBeforeSaveModel=num_steps_save,
-                                numEpisodesRun=num_episodes_run
+                                numEpisodesRun=num_episodes_run,
+                                mode=mode
                                 )
     
     neuralSolver.playGame()  # add boolean flag for train or test
@@ -61,11 +63,11 @@ def runNeuralSolver(env_name,
     gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
     gym.upload(recording_str)
 
-def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run):
+def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode):
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
     env = wrappers.Monitor(env, recording_str)
-    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run)
+    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode)
     
     for i_episode in range(openai_learner.numTraining + 100):
         observation = env.reset()
@@ -101,7 +103,7 @@ def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_de
  
 class OpenAiLearner:
 
-    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run):
+    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode):
         self.env = env
         self.env_name = env_name
 
@@ -251,6 +253,8 @@ def read_command(argv):
     
     parser.add_option('--numEpisodesRun', type='int', dest='num_episodes_run', help=default('Number of episodes before we terminate'),
                         default='15')
+    
+    parser.add_option('--runMode', type='string', dest='mode', help=default('GPU or CPU , if you want GPU mode give option gpu otherwise defaults to cpu'),default='cpu')
     
     options, otherjunk = parser.parse_args(argv)
     assert len(otherjunk) == 0, "Unrecognized options: " + str(otherjunk)

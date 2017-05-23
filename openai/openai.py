@@ -43,7 +43,7 @@ def runNeuralSolver(env_name,
     
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
-    env = wrappers.Monitor(env, recording_str)
+    env = wrappers.Monitor(env, recording_str, video_callable=False)
     neuralSolver = NeuralSolver(gameEnv=env,
                                 agentClass=agent_class,
                                 epsilon=epsilon,
@@ -55,7 +55,8 @@ def runNeuralSolver(env_name,
                                 numActions=num_actions,
                                 numStepsBeforeSaveModel=num_steps_save,
                                 numEpisodesRun=num_episodes_run,
-                                mode=mode
+                                mode=mode,
+				displayGraphics=display_graphics
                                 )
     
     neuralSolver.playGame()  # add boolean flag for train or test

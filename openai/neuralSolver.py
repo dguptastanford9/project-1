@@ -38,7 +38,8 @@ class NeuralSolver():
                  learningDecay=1.0,
                  numStepsBeforeSaveModel=10000,
                  numEpisodesRun=10,
-                 mode='cpu'
+                 mode='cpu',
+		 displayGraphics=False
                  ):
         
         self.gameEnv = gameEnv
@@ -59,7 +60,8 @@ class NeuralSolver():
         self.numEpisodesRun = numEpisodesRun  # total number of episodes we want to execute
         self.mode=mode
         self.agent = util.lookup(agentClass, globals())(actionFn=self.getLegalActions)
-        
+        self.displayGraphics = displayGraphics
+
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
         
         print("STARTING CONV MODEL WITH FOLLOWING PARAMS \n : 1. episilon = ", self.epsilon, \
@@ -217,7 +219,8 @@ class NeuralSolver():
             
             initialColoredObservation = self.gameEnv.reset()
             self.agent.startEpisode() 
-            self.gameEnv.render(close=not displayGraphics)
+            print displayGraphics
+	    self.gameEnv.render(close=not displayGraphics)
             gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose predictedActionScoreVector scalar randomly from predictedActionScoreVector set of legal actions
             
             initialColoredObservation, _, _, _ = self.gameEnv.step(gameAction)  # pass in scalar action to get output
@@ -323,7 +326,7 @@ class NeuralSolver():
     def playGame(self):
         sess = tf.InteractiveSession()
         inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op = self.createNetwork()
-        self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op)
+        self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op, self.displayGraphics)
         
     
     def convertImageBackgroubtToGray(self, currentImageOutputColored):

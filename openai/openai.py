@@ -139,7 +139,7 @@ class OpenAiLearner:
         #    actions = tuple(np.linspace(low, high, 10))
         #    return [actions]
 
-        raise Exception, 'Action type not supported: %s' % type(self.env.action_space)
+        raise Exception('Action type not supported: %s' % type(self.env.action_space))
 
     def observeTransition(self, old_obs, action, observation, reward):
         self.agent.observeTransition(old_obs, action, observation, reward)
@@ -161,7 +161,7 @@ class OpenAiLearner:
             observation = tuple(observation)
         
         else:
-            raise Exception, 'Observation type not supported: %s' % type(self.env.observation_space)
+            raise Exception('Observation type not supported: %s' % type(self.env.observation_space))
     
         if self.sim_env:
             observation = (copy(self.env), observation)

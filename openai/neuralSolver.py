@@ -85,7 +85,7 @@ class NeuralSolver():
     def getLegalActions(self, state=None):
         if isinstance(self.gameEnv.action_space, spaces.discrete.Discrete):
             return tuple(range(self.gameEnv.action_space.n))
-        raise Exception, 'Action type not supported: %s' % type(self.gameEnv.action_space)
+        raise Exception('Action type not supported: %s' % type(self.gameEnv.action_space))
 
     def observeTransition(self, old_obs, action, observation, reward):
         self.agent.observeTransition(old_obs, action, observation, reward)
@@ -99,7 +99,7 @@ class NeuralSolver():
             observation = tuple(observation)
         
         else:
-            raise Exception, 'Observation type not supported: %s' % type(self.gameEnv.observation_space)
+            raise Exception('Observation type not supported: %s' % type(self.gameEnv.observation_space))
     
         return observation
     
@@ -219,8 +219,8 @@ class NeuralSolver():
             
             initialColoredObservation = self.gameEnv.reset()
             self.agent.startEpisode() 
-            print displayGraphics
-	    self.gameEnv.render(close=not displayGraphics)
+            print(displayGraphics)
+            self.gameEnv.render(close=not displayGraphics)
             gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose predictedActionScoreVector scalar randomly from predictedActionScoreVector set of legal actions
             
             initialColoredObservation, _, _, _ = self.gameEnv.step(gameAction)  # pass in scalar action to get output
@@ -231,7 +231,7 @@ class NeuralSolver():
             
             while not done :
                             
-                yout_t = fc_out.eval(feed_dict={inputImageVector: [currentLastFourImageFrames]})[0]  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
+                yout_t = sess.run(fc_out,feed_dict={inputImageVector: [currentLastFourImageFrames]})[0]  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
                 actionVector = np.zeros([self.numActions])
                 action_index = 0
                  
@@ -268,7 +268,7 @@ class NeuralSolver():
                     next_state_image_minibatch = [d[3] for d in minibatch]  # get next batch of stacked image frames 
                     
                     qfunction = []
-                    next_state_reward_eval = fc_out.eval(feed_dict={inputImageVector: next_state_image_minibatch})
+                    next_state_reward_eval = sess.run(fc_out,feed_dict={inputImageVector: next_state_image_minibatch})
                     
                     for i in range(0, len(minibatch)):
                         isEpisodeDone = minibatch[i][4]
@@ -324,7 +324,8 @@ class NeuralSolver():
   
     
     def playGame(self):
-        sess = tf.InteractiveSession()
+        #sess = tf.InteractiveSession()
+        sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,log_device_placement=True))
         inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op = self.createNetwork()
         self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op, self.displayGraphics)
         

@@ -32,6 +32,7 @@ def runNeuralSolver(env_name,
                     epsilon_decay,
                     numTraining,
                     display_graphics,
+                    save_recording,
                     agent_class,
                     discretize,
                     sim_env,
@@ -43,7 +44,9 @@ def runNeuralSolver(env_name,
     
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
-    env = wrappers.Monitor(env, recording_str, video_callable=False)
+    if save_recording:
+        save_recording=None #can be some function called for recording video
+    env = wrappers.Monitor(env, recording_str, video_callable=save_recording)
     neuralSolver = NeuralSolver(gameEnv=env,
                                 agentClass=agent_class,
                                 epsilon=epsilon,
@@ -56,7 +59,7 @@ def runNeuralSolver(env_name,
                                 numStepsBeforeSaveModel=num_steps_save,
                                 numEpisodesRun=num_episodes_run,
                                 mode=mode,
-				displayGraphics=display_graphics
+				                displayGraphics=display_graphics
                                 )
     
     neuralSolver.playGame()  # add boolean flag for train or test
@@ -235,6 +238,8 @@ def read_command(argv):
     parser.add_option('--graphics', action='store_true', dest='display_graphics', help=default('Enable graphic display'),
                         default=True)
     parser.add_option('--no-graphics', action='store_false', dest='display_graphics', help=default('Disable graphic display'),
+                        default=True)
+    parser.add_option('--no-recording', action='store_false', dest='save_recording', help=default('Disable episode recording'),
                         default=True)
     # we dont need this 
     parser.add_option('--discretize', action='store_true', dest='discretize', help=default('Discretize the state space into bins. Specify bin sizes with -b'),

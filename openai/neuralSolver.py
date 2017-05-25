@@ -1,6 +1,6 @@
 import tensorflow as tf
 import cv2
-import random
+import random, math
 import numpy as np
 from collections import deque
 import util
@@ -10,7 +10,7 @@ import gym
 from gym import wrappers
 import gym_ple
 from PIL import Image
-
+import png
 
 # -- possible network flavor types ----------------------------------- 
 __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
@@ -39,7 +39,7 @@ class NeuralSolver():
                  numStepsBeforeSaveModel=10000,
                  numEpisodesRun=10,
                  mode='cpu',
-		 displayGraphics=False
+		         displayGraphics=False
                  ):
         
         self.gameEnv = gameEnv
@@ -59,7 +59,7 @@ class NeuralSolver():
         self.numStepsBeforeSaveModel = numStepsBeforeSaveModel  # save model after these number of steps
         self.numEpisodesRun = numEpisodesRun  # total number of episodes we want to execute
         self.mode=mode
-        self.agent = util.lookup(agentClass, globals())(actionFn=self.getLegalActions)
+        #self.agent = util.lookup(agentClass, globals())(actionFn=self.getLegalActions)
         self.displayGraphics = displayGraphics
 
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
@@ -192,8 +192,7 @@ class NeuralSolver():
                     actualScore,
                     cost,
                     optimizer,
-                    merged_summary_op,
-                    displayGraphics=True):
+                    merged_summary_op):
         
         # ----------------- tensor flow related setup -------------------
         
@@ -218,20 +217,20 @@ class NeuralSolver():
             # ---- open-ai game emulator integration  with initial bootstrapping------
             
             initialColoredObservation = self.gameEnv.reset()
-            self.agent.startEpisode() 
-            print(displayGraphics)
-            self.gameEnv.render(close=not displayGraphics)
+            #self.agent.startEpisode() 
+            self.gameEnv.render(close=not self.displayGraphics)
             gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose predictedActionScoreVector scalar randomly from predictedActionScoreVector set of legal actions
             
             initialColoredObservation, _, _, _ = self.gameEnv.step(gameAction)  # pass in scalar action to get output
-            imageBackgroundGray = self.convertImageBackgroubtToGray(initialColoredObservation)  # do pre-processing on image
+            imageBackgroundGray = self.convertImageBackgroundToGray(initialColoredObservation)  # do pre-processing on image
             currentLastFourImageFrames = np.stack((imageBackgroundGray, imageBackgroundGray, imageBackgroundGray, imageBackgroundGray), axis=2)
             
+            episode_pos_reward = 0 #count the number of positive rewards received
             done = False
             
             while not done :
                             
-                yout_t = sess.run(fc_out,feed_dict={inputImageVector: [currentLastFourImageFrames]})[0]  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
+                yout_t = sess.run(fc_out,feed_dict={inputImageVector: [currentLastFourImageFrames]})  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
                 actionVector = np.zeros([self.numActions])
                 action_index = 0
                  
@@ -243,10 +242,13 @@ class NeuralSolver():
                     actionVector[action_index] = 1
                 
                 nextColoredImageObservation, reward, isEpisodeDone, _ = self.gameEnv.step(action_index)  # run the selected action and observe next state and reward
-                
-                nextImageBackgroundGray = cv2.cvtColor(cv2.resize(nextColoredImageObservation, (80, 80)), cv2.COLOR_BGR2GRAY)  # pre processing 
-                _, nextImageBackgroundGray = cv2.threshold(nextImageBackgroundGray, 1, 255, cv2.THRESH_BINARY)
-                nextImageBackgroundGray = np.reshape(nextImageBackgroundGray, (80, 80, 1))
+               
+                #process reward to be [-1, 0, 1]
+                if reward != 0:
+                    reward /= math.fabs(reward)
+
+                nextImageBackgroundGray = self.convertImageBackgroundToGray(nextColoredImageObservation)  # do pre-processing on image
+                nextImageBackgroundGray = np.reshape(nextImageBackgroundGray, (80,80,1) )
                 nextLastFourImageFrames = np.append(nextImageBackgroundGray, currentLastFourImageFrames[:, :, 0:3], axis=2)  # stack last 4 image frames 
                 
                 replayMemoryQueue.append((currentLastFourImageFrames, actionVector, reward, nextLastFourImageFrames, isEpisodeDone))  # store the transition in replayMemoryQueue
@@ -308,13 +310,18 @@ class NeuralSolver():
                 else:
                     state = "train"
     
+                if reward > 0:
+                    episode_pos_reward += 1
+                '''
                 print("TIMESTEP", numIterations, "/ EPISODE", episodeNum, "/ STATE", state, \
                       "/ EPSILON", self.epsilon, "/ ACTION", action_index, "/ REWARD", reward, \
                       "/ Q_MAX %e" % np.max(yout_t))
-
-                if reward > 0:
-                    print("GREAT SUCCESS! reward = ", reward) 
-
+                '''
+            if episode_pos_reward > 0:
+                print("EPISODE", episodeNum, \
+                    "/ POSITIVE REWARDS", episode_pos_reward, \
+                    "/ STATE", state, \
+                    "/ EPSILON", self.epsilon)
             # scale down epsilon as we train
             # this is predictedActionScoreVector linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
             self.epsilon *= self.epsilonDecay
@@ -327,13 +334,23 @@ class NeuralSolver():
         #sess = tf.InteractiveSession()
         sess = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,log_device_placement=True))
         inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op = self.createNetwork()
-        self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op, self.displayGraphics)
+        self.trainNetwork(sess, inputImageVector, fc_out, predictedActionScoreVector, actualScore, cost, optimizer, merged_summary_op)
         
     
-    def convertImageBackgroubtToGray(self, currentImageOutputColored):
-        imageWithBackgroundGray = cv2.cvtColor(cv2.resize(currentImageOutputColored, (80, 80)), cv2.COLOR_BGR2GRAY)
-        _, imageWithBackgroundGray = cv2.threshold(imageWithBackgroundGray, 1, 255, cv2.THRESH_BINARY)
-        return imageWithBackgroundGray    
+    def convertImageBackgroundToGray(self, currentImageOutputColored):
+        #png.from_array(currentImageOutputColored, "RGB").save("flappy0.png")
+        imgGray = cv2.cvtColor(currentImageOutputColored, cv2.COLOR_BGR2GRAY)
+        #png.from_array(imgGray, "L").save("flappy2.png")
+        block_size = 3
+        #block_size = 93
+        #for block_size in range(3,99,2):
+        imgGaussGray = cv2.adaptiveThreshold(imgGray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+                    cv2.THRESH_BINARY,block_size,2)
+        #png.from_array(imgGaussGray, "L").save("flappy"+str(block_size)+".png")
+        imgResize = cv2.resize(imgGaussGray, (80, 80))
+        #print(imgResize)
+        #png.from_array(imgResize, "L").save("flappy1.png")
+        return imgResize 
     
     
         

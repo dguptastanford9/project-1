@@ -231,7 +231,7 @@ class NeuralSolver():
             
             while not done :
                             
-                yout_t = sess.run(fc_out,feed_dict={inputImageVector: [currentLastFourImageFrames]})[0]  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
+                yout_t = sess.run(fc_out,feed_dict={inputImageVector: [currentLastFourImageFrames]})  # similar to sess.run(y_out,feed_dict={X:x,is_training:True})
                 actionVector = np.zeros([self.numActions])
                 action_index = 0
                  

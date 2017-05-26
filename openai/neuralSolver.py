@@ -15,8 +15,8 @@ import png
 # -- possible network flavor types ----------------------------------- 
 __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
 __DEEP_Q_NETORK = "deepQNetwork"
-logs_path = '/tmp/tensorflow_logs/example'
-saved_networks_path = '/tmp/saved_networks/'
+logs_path = '/home/tf/tensorflow_logs/example'
+saved_networks_path = '/home/tf/saved_networks/'
 # -------------------------------------------------------------------
 
 class NeuralSolver():

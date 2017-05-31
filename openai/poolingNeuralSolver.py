@@ -32,7 +32,7 @@ class NeuralSolver():
                  batchSize=32,
                  framePerAction=1,
                  numActions=2,
-                 replayMemory=20000,
+                 replayMemory=50000,
                  game='flappyBird',
                  learningRate=1e-3,
                  learningDecay=1.0,
@@ -132,27 +132,42 @@ class NeuralSolver():
         
         with tf.device('/cpu:0' if self.mode == 'cpu' else '/gpu:0'):
            
-             
+            
 
+
+            W_conv1 = self.weight_variable([8, 8, 4, 32])
+            b_conv1 = self.bias_variable([32])
+    
+            W_conv2 = self.weight_variable([4, 4, 32, 64])
+            b_conv2 = self.bias_variable([64])
+    
+            W_conv3 = self.weight_variable([3, 3, 64, 64])
+            b_conv3 = self.bias_variable([64])
+    
+            W_fc1 = self.weight_variable([1600, 512])
+            b_fc1 = self.bias_variable([512])
+    
+            W_fc2 = self.weight_variable([512, self.numActions])
+            b_fc2 = self.bias_variable([self.numActions])
+    
             # input layer
             inputImageVector = tf.placeholder("float", [None, 80, 80, 4])
     
             # hidden layers
-            h_conv1 = tf.layers.conv2d(inputImageVector, 32, 8, 4, activation=tf.nn.relu, use_bias=True, name="CONV1")
-
-            h_conv2 = tf.layers.conv2d(h_conv1, 64, 4, 2, activation=tf.nn.relu, use_bias=True, name="CONV2")
+            h_conv1 = tf.nn.relu(self.conv2d(inputImageVector, W_conv1, 4) + b_conv1)
             
-            h_conv3 = tf.layers.conv2d(h_conv2, 64, 3, 1, activation=tf.nn.relu, use_bias=True, name="CONV3")
+            h_pool1 = self.max_pool_2x2(h_conv1)
             
-            print(h_conv3.shape)
-            flatten = tf.reshape(h_conv3, [-1, 2304])
-
-            # fully connected layers
-            h_fc1 = tf.layers.dense(flatten, 256, activation=tf.nn.relu, use_bias=True, name="FC1")
+            h_conv2 = tf.nn.relu(self.conv2d(h_pool1, W_conv2, 2) + b_conv2)
             
-            fc_out = tf.layers.dense(h_fc1, 2, activation=None, use_bias=True, name="FC_OUT")
-
+            h_conv3 = tf.nn.relu(self.conv2d(h_conv2, W_conv3, 1) + b_conv3)
             
+            h_conv3_flat = tf.reshape(h_conv3, [-1, 1600])
+    
+            h_fc1 = tf.nn.relu(tf.matmul(h_conv3_flat, W_fc1) + b_fc1)
+    
+            # fc_out layer
+            fc_out = tf.matmul(h_fc1, W_fc2) + b_fc2
             
             predictedActionScoreVector = tf.placeholder("float", [None, self.numActions])
         
@@ -163,6 +178,8 @@ class NeuralSolver():
             cost = tf.reduce_mean(tf.square(actualScore - predictedScore))  # this is more of regression kind of cost function 
             
             tf.summary.scalar("loss", cost)  # Create predictedActionScoreVector summary to monitor cost tensor
+            #tf.summary.scalar("actualScore",actualScore)
+            #tf.summary.scalar("predictedScore",predictedScore)
             merged_summary_op = tf.summary.merge_all()  # Merge all summaries into predictedActionScoreVector single operation
             
             optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)  # TODO make this configurable
@@ -204,6 +221,7 @@ class NeuralSolver():
             # ---- open-ai game emulator integration  with initial bootstrapping------
             
             initialColoredObservation = self.gameEnv.reset()
+            #self.agent.startEpisode() 
             self.gameEnv.render(close=not self.displayGraphics)
             gameAction = random.choice(self.getLegalActions(initialColoredObservation))  # choose predictedActionScoreVector scalar randomly from predictedActionScoreVector set of legal actions
             
@@ -311,12 +329,10 @@ class NeuralSolver():
                     "/ EPSILON", self.epsilon,\
                     "/ Iteration number",numIterations)
             else :
-                '''
                 print("EPISODE", episodeNum, \
                     "/ STATE", state, \
                     "/ EPSILON", self.epsilon,\
                     "/ Iteration number",numIterations)
-                '''
             # scale down epsilon as we train
             # this is predictedActionScoreVector linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
             if state != "observe":

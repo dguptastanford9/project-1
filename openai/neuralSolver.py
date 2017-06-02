@@ -32,11 +32,12 @@ class NeuralSolver():
                  batchSize=32,
                  framePerAction=1,
                  numActions=2,
-                 replayMemory=20000,
+                 numStepsBeforeSaveModel=100000,
+                 replayMemory=40000,
                  game='flappyBird',
                  learningRate=1e-3,
                  learningDecay=1.0,
-                 numStepsBeforeSaveModel=10000,
+                 numEpsilonCycle=7,
                  numEpisodesRun=10,
                  mode='cpu',
 		         displayGraphics=False
@@ -45,6 +46,7 @@ class NeuralSolver():
         self.gameEnv = gameEnv
         self.modelType = modelType
         self.epsilon = epsilon  # uses random action or predicted action based on epsilon value
+        self.epsilon0 = epsilon # starting epsilon value 
         self.epsilonDecay = epsilonDecay  # decay rate for epsilon
         self.gamma = gamma  # reward factor
         self.numTraining = numTraining  #  number of examples for training
@@ -56,15 +58,16 @@ class NeuralSolver():
         self.replayMemory = replayMemory  # number of previous steps to store
         self.learningRate = learningRate  # learning rate optimization algorithm(RMS/ADAM etc)
         self.learningDecay = learningDecay
-        self.numStepsBeforeSaveModel = numStepsBeforeSaveModel  # save model after these number of steps
+        self.numEpsilonCycle = .5 + numEpsilonCycle # number of time epsilon will decay to 0 throughout the training cycle
         self.numEpisodesRun = numEpisodesRun  # total number of episodes we want to execute
         self.mode=mode
+        self.numStepsBeforeSaveModel = numStepsBeforeSaveModel
         #self.agent = util.lookup(agentClass, globals())(actionFn=self.getLegalActions)
         self.displayGraphics = displayGraphics
 
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
         
-        print("STARTING CONV MODEL WITH FOLLOWING PARAMS \n : 1. episilon = ", self.epsilon, \
+        print("STARTING CONV MODEL WITH FOLLOWING PARAMS: \n 1. episilon = ", self.epsilon, \
               " \n 2. epsilonDecay=", self.epsilonDecay, \
               " \n 3. gamma = ", self.gamma, \
               " \n 4. numTraining = ", self.numTraining , \
@@ -72,7 +75,8 @@ class NeuralSolver():
               " \n 6. numActions = ", self.numActions , \
               " \n 7. learningRate = ", self.learningRate , \
               " \n 8. numStepsBeforeSaveModel = ", self.numStepsBeforeSaveModel, \
-              " \n 9. numEpisodesRun = ", self.numEpisodesRun 
+              " \n 9. numEpisodesRun = ", self.numEpisodesRun, \
+              " \n 10. numEpsilonCycle = ", numEpsilonCycle
               )
         
         print("----------------------------------------------------------------------------")
@@ -148,7 +152,7 @@ class NeuralSolver():
             flatten = tf.reshape(h_conv3, [-1, 2304])
 
             # fully connected layers
-            h_fc1 = tf.layers.dense(flatten, 256, activation=tf.nn.relu, use_bias=True, name="FC1")
+            h_fc1 = tf.layers.dense(flatten, 512, activation=tf.nn.relu, use_bias=True, name="FC1")
             
             fc_out = tf.layers.dense(h_fc1, 2, activation=None, use_bias=True, name="FC_OUT")
 
@@ -163,6 +167,8 @@ class NeuralSolver():
             cost = tf.reduce_mean(tf.square(actualScore - predictedScore))  # this is more of regression kind of cost function 
             
             tf.summary.scalar("loss", cost)  # Create predictedActionScoreVector summary to monitor cost tensor
+            tf.summary.scalar("Predicted_Q-Value", tf.reduce_mean(predictedScore))
+            tf.summary.scalar("Actual_Q-Value", tf.reduce_mean(actualScore))
             merged_summary_op = tf.summary.merge_all()  # Merge all summaries into predictedActionScoreVector single operation
             
             optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(cost)  # TODO make this configurable
@@ -213,6 +219,7 @@ class NeuralSolver():
             
             episode_pos_reward = 0 #count the number of positive rewards received
             done = False
+            modelSaved = False
             
             while not done :
                             
@@ -237,6 +244,7 @@ class NeuralSolver():
                 nextImageBackgroundGray = self.convertImageBackgroundToGray(nextColoredImageObservation)  # do pre-processing on image
                 nextImageBackgroundGray = np.reshape(nextImageBackgroundGray, (80,80,1) )
                 nextLastFourImageFrames = np.append(nextImageBackgroundGray, currentLastFourImageFrames[:, :, 0:3], axis=2)  # stack last 4 image frames 
+                #nextLastFourImageFrames = np.append(currentLastFourImageFrames[:, :, 0:3], nextImageBackgroundGray, axis=2)  # stack last 4 image frames 
                 
                 replayMemoryQueue.append((currentLastFourImageFrames, actionVector, reward, nextLastFourImageFrames, isEpisodeDone))  # store the transition in replayMemoryQueue
                 if len(replayMemoryQueue) > self.replayMemory:
@@ -284,9 +292,11 @@ class NeuralSolver():
                 # update numIterations to track how many training or observations sampled
                 numIterations += 1
                 
-                # save progress every 10000 iterations
-                if numIterations % self.numStepsBeforeSaveModel == 0:
+                # save progress every epsilon cycle 
+                if (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
+                    print("****** Saving Model at episode ", episodeNum, " iteration ", numIterations, " epsilon ", self.epsilon, " ******")
                     saver.save(sess, saved_networks_path + self.game + '-dqn', global_step=numIterations)
+                    modelSaved = True
     
                 # print info
                 state = ""
@@ -304,23 +314,19 @@ class NeuralSolver():
                       "/ EPSILON", self.epsilon, "/ ACTION", action_index, "/ REWARD", reward, \
                       "/ Q_MAX %e" % np.max(yout_t))
                 '''
-            if episode_pos_reward > 0:
-                print("EPISODE", episodeNum, \
-                    "/ POSITIVE REWARDS", episode_pos_reward, \
-                    "/ STATE", state, \
-                    "/ EPSILON", self.epsilon,\
-                    "/ Iteration number",numIterations)
-            else :
-                '''
-                print("EPISODE", episodeNum, \
-                    "/ STATE", state, \
-                    "/ EPSILON", self.epsilon,\
-                    "/ Iteration number",numIterations)
-                '''
+            #if episode_pos_reward > 0:
+            print("EPISODE", episodeNum, \
+                "/ POSITIVE REWARDS", episode_pos_reward, \
+                "/ STATE", state, \
+                "/ EPSILON", self.epsilon,\
+                "/ Iteration number",numIterations)
+            
             # scale down epsilon as we train
             # this is predictedActionScoreVector linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
             if state != "observe":
-                self.epsilon *= self.epsilonDecay
+                #self.epsilon *= self.epsilonDecay
+                self.epsilon = self.epsilon0 * np.power(self.epsilonDecay, episodeNum) * (1 + np.cos(2 * np.pi * episodeNum / (self.numEpisodesRun / self.numEpsilonCycle))) / 2 + .001
+
             if episodeNum > self.numEpisodesRun:
                 self.epsilon = 0
         self.gameEnv.close()
@@ -344,9 +350,10 @@ class NeuralSolver():
                     cv2.THRESH_BINARY,block_size,2)
         #png.from_array(imgGaussGray, "L").save("flappy"+str(block_size)+".png")
         imgResize = cv2.resize(imgGaussGray, (80, 80))
+        imgNormalized = np.divide(imgResize, 255)
         #print(imgResize)
         #png.from_array(imgResize, "L").save("flappy1.png")
-        return imgResize 
+        return imgNormalized
     
     
         

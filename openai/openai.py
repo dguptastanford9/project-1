@@ -39,6 +39,8 @@ def runNeuralSolver(env_name,
                     num_actions,
                     num_steps_save,
                     num_episodes_run,
+                    num_epsilon_cycle,
+                    replay_memory,
                     mode
                     ):
     
@@ -58,6 +60,8 @@ def runNeuralSolver(env_name,
                                 numActions=num_actions,
                                 numStepsBeforeSaveModel=num_steps_save,
                                 numEpisodesRun=num_episodes_run,
+                                numEpsilonCycle=num_epsilon_cycle,
+                                replayMemory=replay_memory,
                                 mode=mode,
 				                displayGraphics=display_graphics
                                 )
@@ -260,7 +264,14 @@ def read_command(argv):
     parser.add_option('--numEpisodesRun', type='int', dest='num_episodes_run', help=default('Number of episodes before we terminate'),
                         default='15')
     
-    parser.add_option('--runMode', type='string', dest='mode', help=default('GPU or CPU , if you want GPU mode give option gpu otherwise defaults to cpu'),default='cpu')
+    parser.add_option('--numEpsilonCycle', type='int', dest='num_epsilon_cycle', help=default('Number of times to decay epsilon value throughout training, creating mini epochs'),
+                        default='7')
+    
+    parser.add_option('--replayMemory', type='int', dest='replay_memory', help=default('Number of former training iterations to remember in model'),
+                        default='40000')
+    
+    parser.add_option('--runMode', type='string', dest='mode', help=default('one of [gpu, cpu]. If you want to run model off GPU mode give option gpu otherwise cpu'),
+                        default='cpu')
     
     options, otherjunk = parser.parse_args(argv)
     assert len(otherjunk) == 0, "Unrecognized options: " + str(otherjunk)

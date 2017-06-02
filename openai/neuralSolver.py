@@ -293,7 +293,7 @@ class NeuralSolver():
                 numIterations += 1
                 
                 # save progress every epsilon cycle 
-                if (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
+                if not modelSaved and (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
                     print("****** Saving Model at episode ", episodeNum, " iteration ", numIterations, " epsilon ", self.epsilon, " ******")
                     saver.save(sess, saved_networks_path + self.game + '-dqn', global_step=numIterations)
                     modelSaved = True

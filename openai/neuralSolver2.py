@@ -318,7 +318,7 @@ class DDQN():
                     summary_writer.add_summary(summary, numIterations - self.numTraining + 1)  #  <-- tensor board stuff 
                     
                     # hyperparameter based on paper https://deepmind.com/research/dqn/
-                    if numIterations % 10 == 0 : 
+                    if numIterations % 10000 == 0 : 
                         print('------Updating target network ---------------') 
                         self.updateTargetNetwork()   
 

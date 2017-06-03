@@ -68,6 +68,7 @@ class DDQN():
         self.displayGraphics = displayGraphics
         self.numEpsilonCycle = .5 + numEpsilonCycle  # number of time epsilon will decay to 0 throughout the training cycle
         self.updateTargetNetworkAfterIterations = updateTargetNetworkAfterIterations
+        self.debug = False  # will log some extra print statements to standard out
         
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
         
@@ -135,9 +136,16 @@ class DDQN():
     
     def updateTargetNetwork(self):
         for targetVariableName in self.targetToSourceVariableNames:
-            sourceWeight = self.sess.run(self.sourceNameToVariableDict[self.targetToSourceVariableNames[targetVariableName]])
+            sourceTensorVariableName = self.targetToSourceVariableNames[targetVariableName]
+            sourceWeight = self.sess.run(self.sourceNameToVariableDict[sourceTensorVariableName])
+            if len(sourceWeight.shape) == 4 and self.debug :
+                print('Source variable :{} value being applied to target {} : \n'.
+                      format(sourceTensorVariableName, sourceWeight[0, 0, 0, :]))
             self.sess.run(self.t_w_assign_op[targetVariableName], feed_dict={self.t_w_input[targetVariableName] : sourceWeight})    
-    
+            
+            if len(sourceWeight.shape) == 4 and self.debug :
+                print('Target Variable : {} after update from source weights {} :\n'.
+                      format(targetVariableName, self.sess.run(self.targetNameToVariableDict[targetVariableName])[0, 0, 0, :]))
                 
     def createNetwork(self):
 
@@ -310,7 +318,7 @@ class DDQN():
                     summary_writer.add_summary(summary, numIterations - self.numTraining + 1)  #  <-- tensor board stuff 
                     
                     # hyperparameter based on paper https://deepmind.com/research/dqn/
-                    if numIterations % 10000 == 0 : 
+                    if numIterations % 10 == 0 : 
                         print('------Updating target network ---------------') 
                         self.updateTargetNetwork()   
 

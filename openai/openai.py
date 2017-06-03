@@ -6,7 +6,7 @@ import util
 import sys, time
 from copy import copy
 from neuralSolver import  NeuralSolver
-
+from neuralSolver2 import  DDQN
 # some default bin settings to get started with tabular qlearning
 BIN_SIZES = {
     # cart_x, cart_velocity, pole_theta, pole_velocity
@@ -22,6 +22,55 @@ BIN_SIZES = {
 BIN_RANGES = {
     'CartPole-v1': ((-2.4, 2.4), (-2.0, 2.0), (-.2, .2), (-3.0, 3.0)),
 }
+
+def runDDQN(env_name,
+                    num_bins,
+                    alpha,
+                    epsilon,
+                    gamma,
+                    alpha_decay,
+                    epsilon_decay,
+                    numTraining,
+                    display_graphics,
+                    save_recording,
+                    agent_class,
+                    discretize,
+                    sim_env,
+                    num_actions,
+                    num_steps_save,
+                    num_episodes_run,
+                    num_epsilon_cycle,
+                    replay_memory,
+                    mode
+                    ):
+    
+    env = gym.make(env_name)
+    recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
+    if save_recording:
+        save_recording = None  # can be some function called for recording video
+    env = wrappers.Monitor(env, recording_str, video_callable=save_recording)
+    ddqn = DDQN(gameEnv=env,
+                                agentClass=agent_class,
+                                epsilon=epsilon,
+                                epsilonDecay=epsilon_decay,
+                                gamma=gamma,
+                                numTraining=numTraining,
+                                learningRate=alpha,
+                                learningDecay=alpha_decay,
+                                numActions=num_actions,
+                                numStepsBeforeSaveModel=num_steps_save,
+                                numEpisodesRun=num_episodes_run,
+                                numEpsilonCycle=num_epsilon_cycle,
+                                replayMemory=replay_memory,
+                                mode=mode,
+                                displayGraphics=display_graphics
+                                )
+    
+    ddqn.playGame()  # add boolean flag for train or test
+    
+    gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
+    gym.upload(recording_str)
+
 
 def runNeuralSolver(env_name,
                     num_bins,
@@ -47,7 +96,7 @@ def runNeuralSolver(env_name,
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
     if save_recording:
-        save_recording=None #can be some function called for recording video
+        save_recording = None  # can be some function called for recording video
     env = wrappers.Monitor(env, recording_str, video_callable=save_recording)
     neuralSolver = NeuralSolver(gameEnv=env,
                                 agentClass=agent_class,
@@ -71,11 +120,11 @@ def runNeuralSolver(env_name,
     gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
     gym.upload(recording_str)
 
-def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode):
+def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode):
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
     env = wrappers.Monitor(env, recording_str)
-    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode)
+    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode)
     
     for i_episode in range(openai_learner.numTraining + 100):
         observation = env.reset()
@@ -111,7 +160,7 @@ def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_de
  
 class OpenAiLearner:
 
-    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run,mode):
+    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode):
         self.env = env
         self.env_name = env_name
 
@@ -286,4 +335,5 @@ def parse_comma_separated_args(option, opt, value, parser):
 if __name__ == '__main__':
     options = read_command(sys.argv[1:])
     # runOpenAi(**options)
-    runNeuralSolver(**options)
+    # runNeuralSolver(**options)
+    runDDQN(**options)

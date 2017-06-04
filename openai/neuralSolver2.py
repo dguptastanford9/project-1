@@ -262,7 +262,7 @@ class DDQN():
             
             episode_pos_reward = 0  # count the number of positive rewards received
             done = False
-            
+            modelSaved=False
             
             while not done :
                             
@@ -330,9 +330,10 @@ class DDQN():
                 numIterations += 1
                 
                 # save progress every epsilon cycle 
-                if (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
+                if not modelSaved  and (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
                     print("****** Saving Model at episode ", episodeNum, " iteration ", numIterations, " epsilon ", self.epsilon, " ******")
                     saver.save(self.sess, saved_networks_path + self.game + '-ddqn', global_step=numIterations)
+                    modelSaved=True
                     
 
                 # print info

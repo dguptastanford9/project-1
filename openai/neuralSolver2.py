@@ -247,7 +247,7 @@ class DDQN():
         
         replayMemoryQueue = deque()  # this will store all the event for replay memory
         numIterations = 0  # number of iterations 
-        
+        avgReward = 0 
         for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
             
             # ---- open-ai game emulator integration  with initial bootstrapping------
@@ -354,8 +354,9 @@ class DDQN():
                     "/ POSITIVE REWARDS", episode_pos_reward, \
                     "/ STATE", state, \
                     "/ EPSILON", self.epsilon, \
-                    "/ Iteration number", numIterations)
-            
+                    "/ Iteration number", numIterations , \
+                    "/ RUNNING AVERAGE REWARDS", avgReward)
+            avgReward = .99 * avgReward + .01 * episode_pos_reward 
             # scale down epsilon as we train ( epsilon oscillating decay formula)
             if state != "observe":
                 self.epsilon = self.epsilon0 * np.power(self.epsilonDecay, episodeNum) * \

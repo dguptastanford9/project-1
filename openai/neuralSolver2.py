@@ -17,8 +17,8 @@ __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
 __DEEP_Q_NETORK = "deepQNetwork"
 # logs_path = '/home/tf/tensorflow_logs/example'
 # saved_networks_path = '/home/tf/saved_networks/'
-logs_path = '/tmp/'
-saved_networks_path = '/tmp/'
+logs_path = '/home/tf/tensorflow_logs_copter/example'
+saved_networks_path = '/home/tf/saved_networks_copter/'
 # -------------------------------------------------------------------
 
 class DDQN():

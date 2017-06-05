@@ -36,7 +36,7 @@ class NeuralSolver():
                  replayMemory=40000,
                  game='flappyBird',
                  learningRate=1e-3,
-                 learningDecay=1.0,
+                 learningDecay=.5,
                  numEpsilonCycle=7,
                  numEpisodesRun=10,
                  mode='cpu',
@@ -204,7 +204,7 @@ class NeuralSolver():
         
         replayMemoryQueue = deque()  # this will store all the event for replay memory
         numIterations = 0  # number of iterations 
-        
+        avgReward = 0 
         for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
             
             # ---- open-ai game emulator integration  with initial bootstrapping------
@@ -319,7 +319,10 @@ class NeuralSolver():
                 "/ POSITIVE REWARDS", episode_pos_reward, \
                 "/ STATE", state, \
                 "/ EPSILON", self.epsilon,\
-                "/ Iteration number",numIterations)
+                "/ Iteration number",numIterations,\
+                "/ RUNNING AVERAGE REWARDS", avgReward)
+
+            avgReward = .99 * avgReward + .01 * episode_pos_reward
             
             # scale down epsilon as we train
             # this is predictedActionScoreVector linear decay self.epsilon -= self.epsilonDecay  / self.numEpisodesRun
@@ -352,7 +355,7 @@ class NeuralSolver():
         imgResize = cv2.resize(imgGaussGray, (80, 80))
         imgNormalized = np.divide(imgResize, 255)
         #print(imgResize)
-        #png.from_array(imgResize, "L").save("flappy1.png")
+        #png.from_array(imgResize, "L").save("copter1.png")
         return imgNormalized
     
     

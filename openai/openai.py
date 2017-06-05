@@ -63,7 +63,8 @@ def runDDQN(env_name,
                                 numEpsilonCycle=num_epsilon_cycle,
                                 replayMemory=replay_memory,
                                 mode=mode,
-                                displayGraphics=display_graphics
+                                displayGraphics=display_graphics,
+		                game=env_name
                                 )
     
     ddqn.playGame()  # add boolean flag for train or test

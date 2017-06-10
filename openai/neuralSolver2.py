@@ -15,10 +15,10 @@ import png
 # -- possible network flavor types ----------------------------------- 
 __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
 __DEEP_Q_NETORK = "deepQNetwork"
-# logs_path = '/home/tf/tensorflow_logs/example'
-# saved_networks_path = '/home/tf/saved_networks/'
-logs_path = '/home/tf/tensorflow_logs_copter/example'
-saved_networks_path = '/home/tf/saved_networks_copter/'
+logs_path = '/home/tf/tensorflow_logs/example'
+saved_networks_path = '/home/tf/saved_networks/'
+#logs_path = '/home/tf/tensorflow_logs_copter/example'
+#saved_networks_path = '/home/tf/saved_networks_copter/'
 # -------------------------------------------------------------------
 
 class DDQN():
@@ -160,7 +160,7 @@ class DDQN():
                 h_conv3 = tf.layers.conv2d(h_conv2, 64, 3, 1, activation=tf.nn.relu, use_bias=True, name="CONV3")
                 flatten = tf.reshape(h_conv3, [-1, 2304])
                 # fully connected layers
-                h_fc1 = tf.layers.dense(flatten, 256, activation=tf.nn.relu, use_bias=True, name="FC1")
+                h_fc1 = tf.layers.dense(flatten, 512, activation=tf.nn.relu, use_bias=True, name="FC1")
                 self.fc_out = tf.layers.dense(h_fc1, 2, activation=None, use_bias=True, name="FC_OUT")
                 self.fc_out_action = tf.argmax(self.fc_out, dimension=1)
                
@@ -172,7 +172,7 @@ class DDQN():
                 h_conv3_target = tf.layers.conv2d(h_conv2_target, 64, 3, 1, activation=tf.nn.relu, use_bias=True, name="CONV3_TARGET")
                 flatten_target = tf.reshape(h_conv3_target, [-1, 2304])
                 # fully connected layers
-                h_fc1_target = tf.layers.dense(flatten_target, 256, activation=tf.nn.relu, use_bias=True, name="FC1_TARGET")
+                h_fc1_target = tf.layers.dense(flatten_target, 512, activation=tf.nn.relu, use_bias=True, name="FC1_TARGET")
                 self.fc_out_target = tf.layers.dense(h_fc1_target, 2, activation=None, use_bias=True, name="FC_OUT_TARGET")
                 
                 self.target_q_idx = tf.placeholder('int32', [None, None], 'outputs_idx')   

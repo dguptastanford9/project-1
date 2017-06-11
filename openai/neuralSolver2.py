@@ -15,10 +15,10 @@ import png
 # -- possible network flavor types ----------------------------------- 
 __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
 __DEEP_Q_NETORK = "deepQNetwork"
-logs_path = '/home/tf/tensorflow_logs/example'
-saved_networks_path = '/home/tf/saved_networks/'
-#logs_path = '/home/tf/tensorflow_logs_copter/example'
-#saved_networks_path = '/home/tf/saved_networks_copter/'
+#logs_path = '/home/tf/tensorflow_logs/example'
+#saved_networks_path = '/home/tf/saved_networks/'
+logs_path = '/tmp/'
+saved_networks_path = '/tmp/'
 # -------------------------------------------------------------------
 
 class DDQN():
@@ -43,7 +43,8 @@ class DDQN():
                  mode='cpu',
                  displayGraphics=False,
                  numEpsilonCycle=7,
-                 updateTargetNetworkAfterIterations=10000
+                 updateTargetNetworkAfterIterations=10000,
+                 useRewardClippingMode=False
                  ):
         
         self.gameEnv = gameEnv
@@ -69,6 +70,7 @@ class DDQN():
         self.numEpsilonCycle = .5 + numEpsilonCycle  # number of time epsilon will decay to 0 throughout the training cycle
         self.updateTargetNetworkAfterIterations = updateTargetNetworkAfterIterations
         self.debug = False  # will log some extra print statements to standard out
+        self.useRewardClippingMode = useRewardClippingMode
         
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
         
@@ -82,7 +84,8 @@ class DDQN():
               " \n 8. numStepsBeforeSaveModel = ", self.numStepsBeforeSaveModel, \
               " \n 9. numEpisodesRun = ", self.numEpisodesRun, \
               " \n 10. numEpsilonCycle = ", self.numEpsilonCycle , \
-              " \n 11. updateTargetNetworkAfterIterations = ", self.updateTargetNetworkAfterIterations
+              " \n 11. updateTargetNetworkAfterIterations = ", self.updateTargetNetworkAfterIterations,
+              " \n 12 . useRewardClippingMode = ", self.useRewardClippingMode
               )
         print("----------------------------------------------------------------------------")
     
@@ -205,7 +208,12 @@ class DDQN():
                 self.predictedActionScoreVector = tf.placeholder("float", [None, self.numActions])  # min_batch_size * numActions
                 self.predictedScore = tf.reduce_sum(tf.multiply(self.fc_out, self.predictedActionScoreVector), axis=1)  # scalar
                 self.targetQ = tf.placeholder("float", [None])  # scalar value  --> this will be calculated by the
-                self.loss = tf.reduce_mean(tf.square(self.targetQ - self.predictedScore))  # this is more of regression kind of cost function 
+                
+                if  self.useRewardClippingMode:
+                    self.loss = tf.reduce_mean(self.clipped_error(self.targetQ - self.predictedScore)) 
+                else :
+                    self.loss = tf.reduce_mean(tf.square(self.targetQ - self.predictedScore))
+                
                 tf.summary.scalar("loss", self.loss)  # Create predictedActionScoreVector summary to monitor cost tensor 
                 tf.summary.scalar("Predicted_Q-Value", tf.reduce_mean(self.predictedScore))
                 tf.summary.scalar("Actual_Q-Value", tf.reduce_mean(self.targetQ))
@@ -262,7 +270,7 @@ class DDQN():
             
             episode_pos_reward = 0  # count the number of positive rewards received
             done = False
-            modelSaved=False
+            modelSaved = False
             
             while not done :
                             
@@ -302,7 +310,9 @@ class DDQN():
                     next_state_image_minibatch = [d[3] for d in minibatch]  # get next batch of stacked image frames 
                     
                     targetQ = []
-                    
+                    if self.useRewardClippingMode :
+                        current_rewards_minibatch = np.clip(current_rewards_minibatch, -1, 1)
+                        
                     next_state_reward_eval = self.sess.run(self.fc_out_action, feed_dict={self.inputImageVector: next_state_image_minibatch})  # <-- get the next state reward 
                     next_state__reward_dqn_eval = self.sess.run(self.target_q_with_idx, feed_dict={  # <----------------------------- Double Q Learning , we don't do max  
                                                            self.inputImageVector_target: next_state_image_minibatch,
@@ -333,7 +343,7 @@ class DDQN():
                 if not modelSaved  and (episodeNum + int(self.numEpisodesRun / self.numEpsilonCycle / 2)) % int(self.numEpisodesRun / self.numEpsilonCycle + 1) == 0: 
                     print("****** Saving Model at episode ", episodeNum, " iteration ", numIterations, " epsilon ", self.epsilon, " ******")
                     saver.save(self.sess, saved_networks_path + self.game + '-ddqn', global_step=numIterations)
-                    modelSaved=True
+                    modelSaved = True
                     
 
                 # print info
@@ -381,6 +391,16 @@ class DDQN():
         imgResize = cv2.resize(imgGaussGray, (80, 80))
         imgNormalized = np.divide(imgResize, 255)
         return imgNormalized
+    
+    def updateTargetNetworkSlowlyButFrequently(self):
+        print('--- This updates the target network to source network ---')
+    
+    
+    
+    
+    def clipped_error(self,x):
+        return tf.where(tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
+       
        
     def main(self):
         self.playGame()

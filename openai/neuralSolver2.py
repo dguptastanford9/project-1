@@ -15,10 +15,10 @@ import png
 # -- possible network flavor types ----------------------------------- 
 __DEEP_RECURRENT_Q_NETWORK_LSTM = 'deepRecurrentQNetwork'
 __DEEP_Q_NETORK = "deepQNetwork"
-#logs_path = '/home/tf/tensorflow_logs/example'
-#saved_networks_path = '/home/tf/saved_networks/'
-logs_path = '/tmp/'
-saved_networks_path = '/tmp/'
+logs_path = '/home/tf/tensorflow_logs/example'
+saved_networks_path = '/home/tf/saved_networks/'
+#logs_path = '/tmp/'
+#saved_networks_path = '/tmp/'
 # -------------------------------------------------------------------
 
 class DDQN():
@@ -255,7 +255,8 @@ class DDQN():
         
         replayMemoryQueue = deque()  # this will store all the event for replay memory
         numIterations = 0  # number of iterations 
-        avgReward = 0 
+        avgReward = 0
+        updateTargetThresh = 10000
         for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
             
             # ---- open-ai game emulator integration  with initial bootstrapping------
@@ -328,9 +329,10 @@ class DDQN():
                     summary_writer.add_summary(summary, numIterations - self.numTraining + 1)  #  <-- tensor board stuff 
                     
                     # hyperparameter based on paper https://deepmind.com/research/dqn/
-                    if numIterations % 10000 == 0 : 
+                    if numIterations == updateTargetThresh: 
                         print('------Updating target network ---------------') 
                         self.updateTargetNetwork()   
+                        updateTargetThresh += int((avgReward+1) * 1500)
 
                 # update the old values
                 currentLastFourImageFrames = nextLastFourImageFrames

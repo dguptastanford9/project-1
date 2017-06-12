@@ -44,7 +44,8 @@ class DDQN():
                  displayGraphics=False,
                  numEpsilonCycle=7,
                  updateTargetNetworkAfterIterations=10000,
-                 useRewardClippingMode=False
+                 useRewardClippingMode=False,
+                 useRMSOptimizer=False
                  ):
         
         self.gameEnv = gameEnv
@@ -71,7 +72,7 @@ class DDQN():
         self.updateTargetNetworkAfterIterations = updateTargetNetworkAfterIterations
         self.debug = False  # will log some extra print statements to standard out
         self.useRewardClippingMode = useRewardClippingMode
-        
+        self.useRMSOptimizer=useRMSOptimizer
         print("-------- BASIC MODEL HYPER PARAMS USED TO RUN THE MODEL -------------------")
         
         print("STARTING DDQN MODEL WITH FOLLOWING PARAMS: \n 1. episilon = ", self.epsilon, \
@@ -85,7 +86,8 @@ class DDQN():
               " \n 9. numEpisodesRun = ", self.numEpisodesRun, \
               " \n 10. numEpsilonCycle = ", self.numEpsilonCycle , \
               " \n 11. updateTargetNetworkAfterIterations = ", self.updateTargetNetworkAfterIterations,
-              " \n 12 . useRewardClippingMode = ", self.useRewardClippingMode
+              " \n 12 . useRewardClippingMode = ", self.useRewardClippingMode,
+              " \n 13 . useRMSOptimizer =",self.useRMSOptimizer
               )
         print("----------------------------------------------------------------------------")
     
@@ -218,7 +220,10 @@ class DDQN():
                 tf.summary.scalar("Predicted_Q-Value", tf.reduce_mean(self.predictedScore))
                 tf.summary.scalar("Actual_Q-Value", tf.reduce_mean(self.targetQ))
                 self.merged_summary_op = tf.summary.merge_all()  # Merge all summaries into predictedActionScoreVector single operation
-                self.optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss)  # TODO make this configurable
+                if self.useRMSOptimizer:
+                    self.optimizer= tf.train.RMSPropOptimizer(self.learningRate).minimize(self.loss)
+                else :
+                    self.optimizer = tf.train.AdamOptimizer(self.learningRate).minimize(self.loss)  # TODO make this configurable
             
             with tf.variable_scope('pred_to_target') :
                 

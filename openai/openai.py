@@ -94,7 +94,8 @@ def runNeuralSolver(env_name,
                     num_epsilon_cycle,
                     replay_memory,
                     mode,
-                    rewardClippingMode
+                    rewardClippingMode,
+                    useRMSOptimizer
                     ):
     
     env = gym.make(env_name)
@@ -116,7 +117,8 @@ def runNeuralSolver(env_name,
                                 numEpsilonCycle=num_epsilon_cycle,
                                 replayMemory=replay_memory,
                                 mode=mode,
-				                displayGraphics=display_graphics
+				                displayGraphics=display_graphics,
+                                useRMSOptimizer=useRMSOptimizer
                                 )
     
     neuralSolver.playGame()  # add boolean flag for train or test
@@ -124,11 +126,11 @@ def runNeuralSolver(env_name,
     gym.scoreboard.api_key = "sk_KFRYZyR1QO2HdihQOHsljA" 
     gym.upload(recording_str)
 
-def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode):
+def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, display_graphics, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode,useRMSOptimizer):
     env = gym.make(env_name)
     recording_str = 'recording/' + env_name + '-' + time.strftime('%H%M%S')
     env = wrappers.Monitor(env, recording_str)
-    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode)
+    openai_learner = OpenAiLearner(env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode,useRMSOptimizer)
     
     for i_episode in range(openai_learner.numTraining + 100):
         observation = env.reset()
@@ -164,7 +166,7 @@ def runOpenAi(env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_de
  
 class OpenAiLearner:
 
-    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode):
+    def __init__(self, env, env_name, num_bins, alpha, epsilon, gamma, alpha_decay, epsilon_decay, numTraining, agent_class, discretize, sim_env, learning_rate, num_actions, num_steps_save, num_episodes_run, mode,rewardClippingMode,useRMSOptimizer):
         self.env = env
         self.env_name = env_name
 
@@ -328,8 +330,10 @@ def read_command(argv):
     
     parser.add_option('--useRewardsClippingMode',dest='rewardClippingMode', help=default('IF true we will clip rewards within the range [-1,1]'),
                         default=False)
-    
-    
+
+    parser.add_option('--useRMSOptimizer',dest='useRMSOptimizer', help=default('IF true we will use RMSOptimizer instead of Adam'),
+                        default=False)
+     
     options, otherjunk = parser.parse_args(argv)
     assert len(otherjunk) == 0, "Unrecognized options: " + str(otherjunk)
     return vars(options)

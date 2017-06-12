@@ -337,7 +337,7 @@ class DDQN():
                     if numIterations == updateTargetThresh: 
                         print('------Updating target network ---------------') 
                         self.updateTargetNetwork()   
-                        updateTargetThresh += int((avgReward+1) * 1500)
+                        updateTargetThresh += int((avgReward+1) * 750 + 9000)
 
                 # update the old values
                 currentLastFourImageFrames = nextLastFourImageFrames

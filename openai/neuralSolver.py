@@ -110,24 +110,6 @@ class NeuralSolver():
     # ------------- END OF OPEN AI RELATED METHODS-------------------------------
     
     
-    def solve_network(self):
-        print('start solving network')
-
-    def weight_variable(self, shape):
-        initial = tf.truncated_normal(shape, stddev=0.01)
-        return tf.Variable(initial)
-
-    def bias_variable(self, shape):
-        initial = tf.constant(0.01, shape=shape)
-        return tf.Variable(initial)
-
-    def conv2d(self, x, W, stride):
-        return tf.nn.conv2d(x, W, strides=[1, stride, stride, 1], padding="SAME")
-
-    def max_pool_2x2(self, x):
-        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding="SAME")
-
-    
     ## ----------------Create Model ------------------------------
     
     def createNetwork(self):
@@ -205,7 +187,7 @@ class NeuralSolver():
         replayMemoryQueue = deque()  # this will store all the event for replay memory
         numIterations = 0  # number of iterations 
         avgReward = 0 
-        for episodeNum in range(self.numEpisodesRun + 100):  # TODO : number of episodes can be tuned 
+        for episodeNum in range(self.numEpisodesRun):  # TODO : number of episodes can be tuned 
             
             # ---- open-ai game emulator integration  with initial bootstrapping------
             
